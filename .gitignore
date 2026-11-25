@@ -1,0 +1,11 @@
+# Python / Environments
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+
+# Environment variables & secrets
+.env
+
+# Large raw datasets (already stored locally)
+BaseTweets/vaccination_all_tweets.csv
