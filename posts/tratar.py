@@ -1,4 +1,4 @@
-"""Extração, filtragem de narrativas conspiratórias e limpeza de sarcasmos (Pandas)."""
+"""Trata a planilha de posts (tweets), filtra conspirações e salva JSON limpo."""
 
 from __future__ import annotations
 
@@ -7,20 +7,19 @@ import ast
 import html
 import json
 import re
+import sys
 from collections import Counter
 from pathlib import Path
 from typing import Any
 
 import pandas as pd
 
-from src.config import (
-    EXTRACTION_STATS_JSON,
-    PROCESSED_TWEETS_JSON,
-    RAW_TWEETS_CSV,
-    ensure_project_dirs,
-)
+# Permite rodar direto via `python posts/tratar.py`
+sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-# Categorias de narrativas conspiracionistas descritas no projeto
+from config import ARQUIVO_POSTS, POSTS_STATS_JSON, POSTS_TRATADOS_JSON, criar_pastas
+
+# Categorias de narrativas conspiracionistas
 CONSPIRACY_PATTERNS: dict[str, re.Pattern[str]] = {
     "5g_microchip": re.compile(
         r"(?:"
@@ -106,7 +105,7 @@ CONSPIRACY_PATTERNS: dict[str, re.Pattern[str]] = {
     ),
 }
 
-# Falsos positivos científicos, notícias neutras, expressões idiomáticas ou spam comercial
+# Falsos positivos científicos, expressões idiomáticas ou spam
 FALSE_POSITIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\bshedding\s+tears\b", re.IGNORECASE),
     re.compile(r"\bsheds?\s+(?:more\s+)?light\b", re.IGNORECASE),
@@ -116,7 +115,7 @@ FALSE_POSITIVE_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\b(?:buy\s+now|shop\s+now|order\s+now|\brs\s*\d+|earphone)\b", re.IGNORECASE),
 ]
 
-# Sarcasmo óbvio, humor pró-vacina e checagem de fatos / debunking
+# Sarcasmo óbvio, humor pró-vacina e checagem de fatos
 SARCASM_OR_DEBUNK_PATTERNS: list[re.Pattern[str]] = [
     re.compile(r"\b(?:zombie|haven't turned|no 5g chip|cell phone reception|burp|galaxy|kidding|joke)\b", re.IGNORECASE),
     re.compile(r"(?:^|\s)/s(?:\s|$)", re.IGNORECASE),
@@ -164,8 +163,12 @@ WHITESPACE_RE = re.compile(r"\s+")
 INLINE_HASHTAG_RE = re.compile(r"#([A-Za-z0-9_]+)")
 
 
-def parse_hashtags(raw_hashtags: Any, text: str) -> list[str]:
-    """Extrai e normaliza hashtags da coluna `hashtags` e do texto do tweet."""
+def detectar_vacinas(text: str) -> list[str]:
+    """Identifica fabricantes/vacinas de COVID-19 mencionadas no texto."""
+    return [brand for brand, pattern in VACCINE_BRAND_PATTERNS.items() if pattern.search(text)]
+
+
+def extrair_hashtags(raw_hashtags: Any, text: str) -> list[str]:
     tags: list[str] = []
     seen: set[str] = set()
 
@@ -194,16 +197,14 @@ def parse_hashtags(raw_hashtags: Any, text: str) -> list[str]:
     return tags
 
 
-def clean_tweet_text(text: str) -> str:
-    """Remove URLs, menções, entidades HTML e excesso de espaços para análise textual."""
+def limpar_texto(text: str) -> str:
     decoded = html.unescape(text or "")
     without_urls = URL_RE.sub(" ", decoded)
     without_mentions = MENTION_RE.sub(" ", without_urls)
     return WHITESPACE_RE.sub(" ", without_mentions).strip()
 
 
-def classify_tweet(text: str) -> tuple[list[str], list[str]]:
-    """Identifica categorias conspiracionistas e termos correspondentes no texto."""
+def classificar_post(text: str) -> tuple[list[str], list[str]]:
     categories: list[str] = []
     matched_terms: list[str] = []
     for category, pattern in CONSPIRACY_PATTERNS.items():
@@ -217,54 +218,39 @@ def classify_tweet(text: str) -> tuple[list[str], list[str]]:
     return categories, matched_terms
 
 
-def is_false_positive(text: str) -> bool:
-    """Verifica se o texto corresponde a contexto científico, idiomático ou spam."""
+def eh_falso_positivo(text: str) -> bool:
     return any(pattern.search(text) for pattern in FALSE_POSITIVE_PATTERNS)
 
 
-def is_sarcasm_or_debunk(text: str) -> bool:
-    """Detecta sarcasmo óbvio, piadas pró-vacina ou checagem/desmentido."""
+def eh_sarcasmo_ou_desmentido(text: str) -> bool:
     return any(pattern.search(text) for pattern in SARCASM_OR_DEBUNK_PATTERNS)
 
 
-def detect_vaccines(text: str) -> list[str]:
-    """Detecta quais fabricantes/vacinas de COVID-19 aparecem no tweet."""
-    return [brand for brand, pattern in VACCINE_BRAND_PATTERNS.items() if pattern.search(text)]
-
-
-def extract_conspiracy_tweets(
-    input_csv: Path = RAW_TWEETS_CSV,
-    output_json: Path = PROCESSED_TWEETS_JSON,
-    stats_json: Path = EXTRACTION_STATS_JSON,
+def tratar_posts(
+    input_csv: Path = ARQUIVO_POSTS,
+    output_json: Path = POSTS_TRATADOS_JSON,
+    stats_json: Path = POSTS_STATS_JSON,
     chunksize: int = 50_000,
 ) -> dict[str, Any]:
-    """Executa o ETL de tweets com Pandas, filtra conspirações e exporta JSON."""
-    ensure_project_dirs()
+    """Lê o CSV de posts em blocos, filtra conspirações e salva o JSON tratado."""
+    criar_pastas()
     if not input_csv.exists():
-        raise FileNotFoundError(f"Arquivo bruto de tweets não encontrado: {input_csv}")
+        raise FileNotFoundError(
+            f"Planilha de posts não encontrada: {input_csv}. "
+            "Verifique ARQUIVO_POSTS no .env ou coloque o CSV na pasta indicada."
+        )
 
     total_rows = 0
     candidate_rows = 0
     false_positive_removed = 0
     sarcasm_removed = 0
     kept_frames: list[pd.DataFrame] = []
-
     category_counter: Counter[str] = Counter()
     monthly_counter: Counter[str] = Counter()
 
     usecols = [
-        "id",
-        "user_name",
-        "user_location",
-        "user_followers",
-        "user_verified",
-        "date",
-        "text",
-        "hashtags",
-        "source",
-        "retweets",
-        "favorites",
-        "is_retweet",
+        "id", "user_name", "user_location", "user_followers", "user_verified",
+        "date", "text", "hashtags", "source", "retweets", "favorites", "is_retweet",
     ]
 
     for chunk in pd.read_csv(
@@ -278,7 +264,7 @@ def extract_conspiracy_tweets(
         chunk = chunk.dropna(subset=["id", "text", "date"]).copy()
         chunk["text"] = chunk["text"].astype(str)
 
-        classifications = chunk["text"].map(classify_tweet)
+        classifications = chunk["text"].map(classificar_post)
         chunk["conspiracy_categories"] = [item[0] for item in classifications]
         chunk["matched_keywords"] = [item[1] for item in classifications]
 
@@ -287,13 +273,13 @@ def extract_conspiracy_tweets(
             continue
         candidate_rows += len(candidates)
 
-        fp_mask = candidates["text"].map(is_false_positive)
+        fp_mask = candidates["text"].map(eh_falso_positivo)
         false_positive_removed += int(fp_mask.sum())
         candidates = candidates[~fp_mask].copy()
         if candidates.empty:
             continue
 
-        sarcasm_mask = candidates["text"].map(is_sarcasm_or_debunk)
+        sarcasm_mask = candidates["text"].map(eh_sarcasmo_ou_desmentido)
         sarcasm_removed += int(sarcasm_mask.sum())
         filtered = candidates[~sarcasm_mask].copy()
         if filtered.empty:
@@ -307,11 +293,11 @@ def extract_conspiracy_tweets(
         filtered["published_at"] = parsed_dates.dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         filtered["date_day"] = parsed_dates.dt.strftime("%Y-%m-%d")
         filtered["year_month"] = parsed_dates.dt.strftime("%Y-%m")
-        filtered["clean_text"] = filtered["text"].map(clean_tweet_text)
+        filtered["clean_text"] = filtered["text"].map(limpar_texto)
         filtered["hashtags_list"] = [
-            parse_hashtags(h, t) for h, t in zip(filtered["hashtags"], filtered["text"])
+            extrair_hashtags(h, t) for h, t in zip(filtered["hashtags"], filtered["text"])
         ]
-        filtered["vaccines_mentioned"] = filtered["text"].map(detect_vaccines)
+        filtered["vaccines_mentioned"] = filtered["text"].map(detectar_vacinas)
         filtered["primary_category"] = filtered["conspiracy_categories"].map(lambda cats: cats[0])
 
         for col in ("retweets", "favorites", "user_followers"):
@@ -333,26 +319,11 @@ def extract_conspiracy_tweets(
         kept_frames.append(
             filtered[
                 [
-                    "tweet_id",
-                    "published_at",
-                    "date_day",
-                    "year_month",
-                    "user_name",
-                    "user_location",
-                    "user_followers",
-                    "user_verified",
-                    "text",
-                    "clean_text",
-                    "hashtags_list",
-                    "conspiracy_categories",
-                    "primary_category",
-                    "matched_keywords",
-                    "vaccines_mentioned",
-                    "retweets",
-                    "favorites",
-                    "total_engagement",
-                    "engagement_score",
-                    "source",
+                    "tweet_id", "published_at", "date_day", "year_month",
+                    "user_name", "user_location", "user_followers", "user_verified",
+                    "text", "clean_text", "hashtags_list", "conspiracy_categories",
+                    "primary_category", "matched_keywords", "vaccines_mentioned",
+                    "retweets", "favorites", "total_engagement", "engagement_score", "source",
                 ]
             ]
         )
@@ -364,50 +335,34 @@ def extract_conspiracy_tweets(
         result_df = pd.DataFrame()
 
     records = result_df.to_dict(orient="records") if not result_df.empty else []
-    # Renomeia hashtags_list -> hashtags para documento limpo no MongoDB
     for rec in records:
         rec["hashtags"] = rec.pop("hashtags_list")
 
     output_json.parent.mkdir(parents=True, exist_ok=True)
-    with output_json.open("w", encoding="utf-8") as fh:
-        json.dump(records, fh, ensure_ascii=False, indent=2)
+    output_json.write_text(json.dumps(records, ensure_ascii=False, indent=2), encoding="utf-8")
 
     stats: dict[str, Any] = {
         "input_csv": str(input_csv),
         "output_json": str(output_json),
-        "total_raw_tweets": total_rows,
-        "candidate_conspiracy_tweets": candidate_rows,
+        "total_raw_posts": total_rows,
+        "candidate_conspiracy_posts": candidate_rows,
         "false_positives_removed": false_positive_removed,
         "sarcasm_or_debunk_removed": sarcasm_removed,
-        "final_conspiracy_tweets": len(records),
-        "retention_pct_from_candidates": round((len(records) / candidate_rows) * 100, 2)
-        if candidate_rows
-        else 0.0,
+        "final_conspiracy_posts": len(records),
         "category_counts": dict(category_counter.most_common()),
         "monthly_counts": dict(sorted(monthly_counter.items())),
     }
-
-    with stats_json.open("w", encoding="utf-8") as fh:
-        json.dump(stats, fh, ensure_ascii=False, indent=2)
-
+    stats_json.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
     return stats
 
 
 def main() -> None:
-    """Ponto de entrada CLI para extração e filtragem dos tweets."""
-    parser = argparse.ArgumentParser(
-        description="Extrai, filtra narrativas conspiracionistas e limpa sarcasmos dos tweets."
-    )
-    parser.add_argument("--input", type=Path, default=RAW_TWEETS_CSV, help="CSV bruto dos tweets.")
-    parser.add_argument("--output", type=Path, default=PROCESSED_TWEETS_JSON, help="JSON de saída.")
-    parser.add_argument("--stats", type=Path, default=EXTRACTION_STATS_JSON, help="Resumo JSON da extração.")
+    parser = argparse.ArgumentParser(description="Trata a planilha de posts e gera JSON limpo.")
+    parser.add_argument("--input", type=Path, default=ARQUIVO_POSTS, help="CSV de entrada (padrão: ARQUIVO_POSTS do .env).")
+    parser.add_argument("--output", type=Path, default=POSTS_TRATADOS_JSON, help="JSON de saída.")
     args = parser.parse_args()
 
-    stats = extract_conspiracy_tweets(
-        input_csv=args.input,
-        output_json=args.output,
-        stats_json=args.stats,
-    )
+    stats = tratar_posts(input_csv=args.input, output_json=args.output)
     print(json.dumps(stats, ensure_ascii=False, indent=2))
 
 

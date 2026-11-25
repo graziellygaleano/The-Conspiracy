@@ -4,9 +4,11 @@ __pycache__/
 *.py[cod]
 .pytest_cache/
 
-# Environment variables & secrets
+# Credenciais e configuração local
 .env
 
-# Large raw datasets and generated outputs
-data/raw/
+# Planilhas reais grandes, dados tratados e saídas geradas
+dados/reais/*
+!dados/reais/.gitkeep
+dados/tratados/
 outputs/

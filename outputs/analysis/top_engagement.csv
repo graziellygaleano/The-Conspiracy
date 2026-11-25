@@ -1,4 +1,0 @@
-﻿tweet_id,published_at,clean_text,conspiracy_categories,total_engagement,engagement_score,retweets,favorites
-sample-3,2021-02-20T12:00:00Z,microchip tracking 5g vaccine,['5g_microchip'],20,28,8,12
-sample-1,2021-01-15T12:00:00Z,Pfizer vaccine efficacy microchip conspiracy,['5g_microchip'],12,17,5,7
-sample-2,2021-02-15T12:00:00Z,graphene vaccine safety misinformation,"['graphene_toxins', 'elites_nwo_agenda']",8,11,3,5

@@ -1,0 +1,8 @@
+id,user_name,user_location,user_followers,user_verified,date,text,hashtags,source,retweets,favorites,is_retweet
+1001,user_a,USA,450,False,2021-01-15 12:00:00,"This Pfizer vaccine has a 5G microchip to track people! #microchip #5G","['microchip', '5G']",Twitter Web App,5,7,False
+1002,user_b,UK,1200,False,2021-02-15 14:30:00,"Graphene oxide inside the vaccine is part of the New World Order agenda #graphene #nwo","['graphene', 'nwo']",Twitter for Android,3,5,False
+1003,user_c,Canada,890,False,2021-02-20 09:15:00,"Moderna shot is a bioweapon for depopulation and DNA modification #plandemic","['plandemic']",Twitter for iPhone,8,12,False
+1004,user_d,USA,300,False,2021-03-10 18:00:00,"Got my first Pfizer vaccine today, still waiting for my 5G signal to improve lol 😂","['Pfizer']",Twitter for iPhone,2,15,False
+1005,user_e,Brazil,520,False,2021-04-12 10:00:00,"Fact check: COVID vaccines do not alter human DNA and contain no microchip #factcheck","['factcheck']",Twitter Web App,10,25,False
+1006,user_f,UK,150,False,2021-05-05 16:45:00,"New study sheds light on vaccine safety and sheds tears of joy for science","['vaccine']",Twitter Web App,1,4,False
+1007,user_g,Australia,640,False,2021-08-18 11:20:00,"AstraZeneca vaccine causes magnetic arm and spike protein shedding to unvaccinated #magnetchallenge","['magnetchallenge']",Twitter for Android,6,9,False

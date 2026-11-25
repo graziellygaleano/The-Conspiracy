@@ -1,59 +1,68 @@
 # Engenharia de Dados: Artigos sobre Vacinas vs. Conspirações no X
 
-Repositório do trabalho da parte de **Engenharia de Dados** da disciplina de Banco de Dados 2 (ADS — IFSP Jacareí).
+Repositório do trabalho de **Engenharia de Dados** da disciplina de Banco de Dados 2 (ADS — IFSP Jacareí).
 
 ## Qual é a ideia?
-Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas fontes diferentes em dois bancos de paradigmas distintos para fazer uma **correlação estatística** entre a publicação de artigos científicos sobre vacinas e a frequência/engajamento de posts conspiracionistas no X (antigo Twitter).
+Montar um fluxo **ETL (Extração, Transformação e Carga)** integrando dois bancos de paradigmas diferentes para analisar a **correlação estatística mensal** entre artigos científicos sobre vacinas e posts conspiracionistas no X (antigo Twitter):
 
-## Como o pipeline funciona
+* **Posts (`posts/` → MongoDB):** filtra narrativas conspiratórias, remove sarcasmos/falsos positivos e envia os documentos limpos para o MongoDB.
+* **Artigos (`artigos/` → MySQL):** padroniza colunas, extrai vacina/eficácia/eixo temático e envia os metadados estruturados para o MySQL.
+* **Análise (`analise/` → Pandas):** cruza as duas bases por mês (`YYYY-MM`), calcula correlação de Pearson, termos frequentes e engajamento por categoria.
 
-* **Extração e Limpeza (`Python` + `Pandas`):** Um script vasculha a base bruta de tweets sobre vacinação (`vaccination_all_tweets.csv`), filtra narrativas conspiratórias (5G/microchip, grafeno, arma biológica, etc.), limpa sarcasmos óbvios e exporta tudo em `.json`.
-* **Carga Relacional (`MySQL`):** Guarda os metadados estruturados dos artigos científicos sobre vacinação (DOI, título, data, periódico e resumo) para servir de referência temporal e temática.
-* **Carga NoSQL (`MongoDB`):** Recebe os tweets já filtrados e categorizados via PyMongo (upsert), aproveitando a estrutura flexível de documentos para cruzar datas, hashtags, métricas e categorias na análise estatística.
-* **Análise integrada (`Pandas`):** Lê os tweets do MongoDB e metadados do MySQL, agrega contagens mensais, calcula correlação de Pearson entre publicações e tweets, extrai termos frequentes e resume engajamento por categoria.
+## Estrutura do projeto
 
-## Preparar metadados Bibliometrix
-
-Antes da carga, execute uma vez a limpeza da exportação Bibliometrix. O script mantém apenas `DI`, `TI`, `AU`, `PY`, `SO`, `AB`, `DE` e `TC` (quando presentes), converte `PY` e `TC` para inteiros e gera `artigos_mysql.csv`:
-
-```powershell
-python -m src.clean_bibliometrix --input caminho\para\Bibliometrix-Export-File.csv --output artigos_mysql.csv
+```text
+The-Conspiracy/
+├── .env.example              # Modelo de senhas e caminhos das planilhas
+├── config.py                 # Lê o .env e centraliza caminhos/credenciais
+├── dados/
+│   ├── exemplo/              # Planilhas pequenas para testar rápido
+│   ├── reais/                # Coloque aqui as planilhas completas (ignorado no Git)
+│   └── tratados/             # Gerado automaticamente antes de subir pros bancos
+├── sql/schema.sql            # Tabela e view do MySQL
+├── posts/
+│   ├── tratar.py             # Limpa e filtra a planilha de posts
+│   └── enviar_mongo.py       # Envia os posts tratados para o MongoDB
+├── artigos/
+│   ├── tratar.py             # Padroniza a planilha de artigos
+│   └── enviar_mysql.py       # Envia os artigos tratados para o MySQL
+└── analise/
+    └── correlacao.py         # Gera os CSVs de correlação e engajamento
 ```
 
-O carregador MySQL reconhece os nomes abreviados Bibliometrix. `PY` é usado como ano de publicação (normalizado para 1º de janeiro, pois o arquivo não informa mês/dia); `TC` é preservado na planilha limpa, mas não é carregado no MySQL porque a tabela atual não possui coluna de citações.
+## Como executar
 
-## Executar o pipeline
-
-## Status atual do projeto
-
-O projeto está na etapa de **implementação e validação local do pipeline**. Já estão implementados: extração e classificação de tweets da base local, filtro heurístico de sarcasmo/debunk (incluindo o padrão de termos atualizado), carga dos tweets no MongoDB, normalização/carga de metadados no MySQL e análise integrada mensal com termos frequentes e engajamento. A análise foi validada offline com dados demonstrativos. Próximos passos para concluir a validação ponta a ponta: configurar e testar as conexões reais dos bancos, carregar metadados científicos reais (o CSV em `data/sample` é ilustrativo), executar a extração sobre a base completa e revisar os resultados/qualidade das heurísticas.
-
-Instale as dependências (`pip install -r requirements.txt`), copie `.env.example` para `.env` e configure as conexões. O CSV original de tweets deve estar em `data/raw/vaccination_all_tweets.csv` (ele é ignorado pelo Git por ser grande). Os serviços MySQL e MongoDB precisam estar ativos.
-
+1. Instale as dependências:
 ```powershell
-<<<<<<< HEAD
-python -m src.tweets.extract_tweets
-python -m src.tweets.load_mongo
-python -m src.articles.load_mysql --input caminho\para\artigos.csv
-python -m src.analysis.analyze --from-mongo
-=======
-python -m src.extract_tweets
-python -m src.load_mongo
-python -m src.load_mysql --input artigos_mysql.csv
-python -m src.analyze --from-mongo
->>>>>>> f52202e466b04036508dab3a677b41b090512b70
+pip install -r requirements.txt
 ```
 
-O carregador MySQL aceita CSV, JSON e JSONL; `--dry-run` valida e mostra uma prévia sem conectar ao banco. A análise grava `monthly.csv`, `correlation.csv`, `top_terms.csv`, `category_engagement.csv` e `top_engagement.csv` em `outputs/analysis/`. A união entre os bancos é temporal, por mês (`YYYY-MM`): correlação não implica causalidade e Pearson não é reportado como interpretável quando há menos de dois meses ou nenhuma variação em uma série.
+2. Copie `.env.example` para `.env`. Por padrão, ele já aponta para `dados/exemplo/`. Quando baixar as planilhas completas, coloque-as em `dados/reais/` e troque `ARQUIVO_POSTS` e `ARQUIVO_ARTIGOS` no `.env`.
 
-Para experimentar a análise sem os bancos, gere primeiro o JSON dos tweets e use o CSV de demonstração:
-
+3. **Testar localmente (sem precisar dos bancos ligados):**
 ```powershell
-python -m src.tweets.extract_tweets
-python -m src.analysis.analyze --tweets-json data/processed/conspiracy_tweets.json --articles data/sample/artigos_exemplo.csv
+python posts/tratar.py
+python artigos/tratar.py
+python analise/correlacao.py
+```
+Você também pode simular o envio aos bancos sem conectar usando `--dry-run`:
+```powershell
+python posts/enviar_mongo.py --dry-run
+python artigos/enviar_mysql.py --dry-run
 ```
 
-`data/sample/artigos_exemplo.csv` contém registros ilustrativos para validar o fluxo; substitua-o por metadados reais de publicações científicas antes de interpretar os resultados.
+4. **Executar com MongoDB e MySQL reais:**
+```powershell
+python posts/tratar.py
+python posts/enviar_mongo.py
+
+python artigos/tratar.py
+python artigos/enviar_mysql.py
+
+python analise/correlacao.py --bancos
+```
+
+Os resultados da análise são gravados em `outputs/analise/` (`monthly.csv`, `correlation.csv`, `top_terms.csv`, `category_engagement.csv` e `top_engagement.csv`).
 
 ## Links do Projeto
 
