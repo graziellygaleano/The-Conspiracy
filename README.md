@@ -3,7 +3,7 @@
 Repositório do trabalho da parte de **Engenharia de Dados** da disciplina de Banco de Dados 2 (ADS — IFSP Jacareí).
 
 ## Qual é a ideia?
-Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas fontes diferentes em dois bancos de paradigmas distintos para fazer uma **correlação estatística** entre a publicação de artigos científicos sobre vacinas e a frequência/engajamento de posts conspiracionistas no X (RIP Twitter).
+Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas fontes diferentes em dois bancos de paradigmas distintos para fazer uma **correlação estatística** entre a publicação de artigos científicos sobre vacinas e a frequência/engajamento de posts conspiracionistas no X (antigo Twitter).
 
 ## Como o pipeline funciona
 
@@ -13,6 +13,7 @@ Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas font
 
 ## Links do Projeto
 
+* 📊 **Dataset Original (Kaggle):** [All COVID-19 Vaccines Tweets](https://www.kaggle.com/datasets/gpreda/all-covid19-vaccines-tweets?resource=download)
 * 📁 **Pasta dos Dados (*THE CONSPIRACY*):** [Acessar datasets no Google Drive](https://drive.google.com/drive/u/1/folders/16wup2_OnI6hSlsW3Z0YRCsP4-sA0JP7J)
 * 📄 **Documentação (*Relatório 2 de BD*):** [Acessar relatório no Google Docs](https://docs.google.com/document/d/1mJKzjKYycTv7Mla2kXlCSZp6gs8DdDWsR9Jg5Ited5E/edit?tab=t.0)
 
