@@ -32,7 +32,7 @@ def load_tweets_to_mongo(
     if not json_path.exists():
         raise FileNotFoundError(
             f"Arquivo JSON processado não encontrado: {json_path}. "
-            "Execute `python -m src.extract_tweets` primeiro."
+            "Execute `python -m src.tweets.extract_tweets` primeiro."
         )
 
     with json_path.open("r", encoding="utf-8") as fh:

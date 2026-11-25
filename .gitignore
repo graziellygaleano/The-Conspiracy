@@ -7,5 +7,6 @@ __pycache__/
 # Environment variables & secrets
 .env
 
-# Large raw datasets (already stored locally)
-BaseTweets/vaccination_all_tweets.csv
+# Large raw datasets and generated outputs
+data/raw/
+outputs/

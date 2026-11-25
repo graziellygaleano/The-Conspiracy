@@ -11,7 +11,8 @@ from dotenv import load_dotenv
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(PROJECT_ROOT / ".env")
 
-RAW_TWEETS_CSV = PROJECT_ROOT / "BaseTweets" / "vaccination_all_tweets.csv"
+RAW_DIR = PROJECT_ROOT / "data" / "raw"
+RAW_TWEETS_CSV = RAW_DIR / "vaccination_all_tweets.csv"
 PROCESSED_DIR = PROJECT_ROOT / "data" / "processed"
 SAMPLE_DIR = PROJECT_ROOT / "data" / "sample"
 OUTPUTS_DIR = PROJECT_ROOT / "outputs"
@@ -46,5 +47,5 @@ class MongoConfig:
 
 def ensure_project_dirs() -> None:
     """Garante que os diretórios de saída do pipeline existam."""
-    for directory in (PROCESSED_DIR, SAMPLE_DIR, OUTPUTS_DIR, FIGURES_DIR, TABLES_DIR):
+    for directory in (RAW_DIR, PROCESSED_DIR, SAMPLE_DIR, OUTPUTS_DIR, FIGURES_DIR, TABLES_DIR):
         directory.mkdir(parents=True, exist_ok=True)

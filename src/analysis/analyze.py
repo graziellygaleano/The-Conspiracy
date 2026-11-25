@@ -166,7 +166,7 @@ def main() -> None:
         tweets = load_tweets_from_mongo()
 
     if args.articles:
-        from src.load_mysql import normalize_articles_dataframe, read_articles_file
+        from src.articles.load_mysql import normalize_articles_dataframe, read_articles_file
         raw = read_articles_file(args.articles)
         articles = normalize_articles_dataframe(raw, args.articles.name)
     else:

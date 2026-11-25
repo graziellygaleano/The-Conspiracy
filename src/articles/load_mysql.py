@@ -13,7 +13,7 @@ import mysql.connector
 import pandas as pd
 
 from src.config import SQL_SCHEMA_PATH, MySQLConfig
-from src.extract_tweets import detect_vaccines
+from src.tweets.extract_tweets import detect_vaccines
 
 # Mapeamento flexível de nomes de colunas comuns em bases PubMed / OpenAlex / Crossref / Kaggle
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
