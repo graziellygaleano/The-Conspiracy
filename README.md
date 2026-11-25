@@ -12,6 +12,16 @@ Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas font
 * **Carga NoSQL (`MongoDB`):** Recebe os tweets já filtrados e categorizados via PyMongo (upsert), aproveitando a estrutura flexível de documentos para cruzar datas, hashtags, métricas e categorias na análise estatística.
 * **Análise integrada (`Pandas`):** Lê os tweets do MongoDB e metadados do MySQL, agrega contagens mensais, calcula correlação de Pearson entre publicações e tweets, extrai termos frequentes e resume engajamento por categoria.
 
+## Preparar metadados Bibliometrix
+
+Antes da carga, execute uma vez a limpeza da exportação Bibliometrix. O script mantém apenas `DI`, `TI`, `AU`, `PY`, `SO`, `AB`, `DE` e `TC` (quando presentes), converte `PY` e `TC` para inteiros e gera `artigos_mysql.csv`:
+
+```powershell
+python -m src.clean_bibliometrix --input caminho\para\Bibliometrix-Export-File.csv --output artigos_mysql.csv
+```
+
+O carregador MySQL reconhece os nomes abreviados Bibliometrix. `PY` é usado como ano de publicação (normalizado para 1º de janeiro, pois o arquivo não informa mês/dia); `TC` é preservado na planilha limpa, mas não é carregado no MySQL porque a tabela atual não possui coluna de citações.
+
 ## Executar o pipeline
 
 ## Status atual do projeto
@@ -23,7 +33,7 @@ Instale as dependências (`pip install -r requirements.txt`), copie `.env.exampl
 ```powershell
 python -m src.extract_tweets
 python -m src.load_mongo
-python -m src.load_mysql --input caminho\para\artigos.csv
+python -m src.load_mysql --input artigos_mysql.csv
 python -m src.analyze --from-mongo
 ```
 
