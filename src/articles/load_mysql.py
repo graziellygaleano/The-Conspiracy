@@ -17,8 +17,8 @@ from src.tweets.extract_tweets import detect_vaccines
 
 # Mapeamento flexível de nomes de colunas comuns em bases PubMed / OpenAlex / Crossref / Kaggle
 COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
-    "doi": ("doi", "article_doi", "pmid", "id"),
-    "title": ("title", "titulo", "article_title", "paper_title", "name"),
+    "doi": ("doi", "di", "article_doi", "pmid", "id"),
+    "title": ("title", "ti", "titulo", "article_title", "paper_title", "name"),
     "publication_date": (
         "publication_date",
         "pub_date",
@@ -28,11 +28,12 @@ COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
         "publish_time",
         "publication_year",
         "year",
+        "py",
     ),
-    "journal": ("journal", "periodico", "journal_name", "venue", "source", "journal/book"),
-    "authors": ("authors", "autores", "author", "creators"),
-    "abstract": ("abstract", "resumo", "summary", "description"),
-    "keywords": ("keywords", "palavras_chave", "mesh_terms", "tags", "topics"),
+    "journal": ("journal", "so", "periodico", "journal_name", "venue", "source", "journal/book"),
+    "authors": ("authors", "au", "autores", "author", "creators"),
+    "abstract": ("abstract", "ab", "resumo", "summary", "description"),
+    "keywords": ("keywords", "de", "palavras_chave", "mesh_terms", "tags", "topics"),
     "vaccine_mentioned": ("vaccine_mentioned", "vaccine", "vacina", "vaccines"),
     "efficacy_reported": ("efficacy_reported", "efficacy", "eficacia", "effectiveness"),
     "study_type": ("study_type", "tipo_estudo", "publication_type", "type"),
