@@ -3,7 +3,7 @@
 Repositório do trabalho da parte de **Engenharia de Dados** da disciplina de Banco de Dados 2 (ADS — IFSP Jacareí).
 
 ## Qual é a ideia?
-Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas fontes diferentes em dois bancos de paradigmas distintos para fazer uma **correlação estatística** entre a publicação de artigos científicos sobre vacinas e a frequência/engajamento de posts conspiracionistas no X (antigo Twitter).
+Montar um fluxo **ETL (Extração, Transformação e Carga)** juntando duas fontes diferentes em dois bancos de paradigmas distintos para fazer uma **correlação estatística** entre a publicação de artigos científicos sobre vacinas e a frequência/engajamento de posts conspiracionistas no X (RIP Twitter).
 
 ## Como o pipeline funciona
 
