@@ -18,7 +18,7 @@ CREATE TABLE IF NOT EXISTS scientific_articles (
     publication_date DATE NOT NULL,
     publication_month CHAR(7) NOT NULL COMMENT 'Formato YYYY-MM para agregação temporal',
     journal VARCHAR(500) NULL,
-    authors TEXT NULL,
+    authors LONGTEXT NULL,
     abstract LONGTEXT NULL,
     keywords TEXT NULL COMMENT 'Palavras-chave separadas por ponto e vírgula',
     vaccine_mentioned VARCHAR(255) NULL COMMENT 'Vacina(s) mencionada(s): Pfizer, Moderna, AstraZeneca, etc.',
@@ -36,6 +36,9 @@ CREATE TABLE IF NOT EXISTS scientific_articles (
     KEY idx_articles_thematic (thematic_axis),
     FULLTEXT KEY ft_articles_text (title, abstract, keywords)
 ) ENGINE=InnoDB DEFAULT CHARSET=utf8mb4 COLLATE=utf8mb4_unicode_ci;
+
+-- Migração idempotente para bases existentes: listas de autores podem exceder TEXT.
+ALTER TABLE scientific_articles MODIFY COLUMN authors LONGTEXT NULL;
 
 -- View de resumo mensal para cruzamento temporal rápido com o MongoDB via Pandas
 CREATE OR REPLACE VIEW vw_articles_monthly_summary AS
