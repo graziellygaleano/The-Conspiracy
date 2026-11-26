@@ -34,6 +34,7 @@ ARQUIVO_ARTIGOS = _resolver_caminho("ARQUIVO_ARTIGOS", "dados/exemplo/artigos_ex
 POSTS_TRATADOS_JSON = TRATADOS_DIR / "posts_tratados.json"
 POSTS_STATS_JSON = TRATADOS_DIR / "posts_stats.json"
 ARTIGOS_TRATADOS_CSV = TRATADOS_DIR / "artigos_tratados.csv"
+ARTIGOS_STATS_JSON = TRATADOS_DIR / "artigos_stats.json"
 
 
 @dataclass(frozen=True)

@@ -15,7 +15,7 @@ import pandas as pd
 # Permite rodar direto via `python artigos/tratar.py`
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from config import ARQUIVO_ARTIGOS, ARTIGOS_TRATADOS_CSV, criar_pastas
+from config import ARQUIVO_ARTIGOS, ARTIGOS_STATS_JSON, ARTIGOS_TRATADOS_CSV, criar_pastas
 from posts.tratar import detectar_vacinas
 
 # Nomes comuns de colunas em bases como PubMed, OpenAlex, Crossref, Scopus/Bibliometrix e Kaggle
@@ -26,7 +26,7 @@ COLUMN_ALIASES: dict[str, tuple[str, ...]] = {
         "publication_date", "pub_date", "date", "published_at",
         "data_publicacao", "publish_time", "publication_year", "year", "py",
     ),
-    "journal": ("journal", "so", "periodico", "journal_name", "venue", "source", "source title", "journal/book"),
+    "journal": ("journal", "so", "source title", "periodico", "journal_name", "venue", "journal/book", "source"),
     "authors": ("authors", "au", "autores", "author", "creators"),
     "abstract": ("abstract", "ab", "resumo", "summary", "description"),
     "keywords": ("keywords", "de", "author keywords", "palavras_chave", "mesh_terms", "tags", "topics"),
@@ -208,11 +208,46 @@ def normalizar_artigos(df: pd.DataFrame, source_name: str) -> pd.DataFrame:
     return normalized
 
 
+def _contar(serie: pd.Series, top: int | None = None) -> dict[str, int]:
+    """Conta valores não vazios de uma coluna, do mais ao menos frequente."""
+    contagem = serie.dropna().astype(str).value_counts()
+    if top:
+        contagem = contagem.head(top)
+    return {str(k): int(v) for k, v in contagem.items()}
+
+
+def gerar_resumo(raw_df: pd.DataFrame, norm_df: pd.DataFrame, input_path: Path, output_csv: Path) -> dict[str, Any]:
+    """Monta o resumo dos artigos tratados (equivalente ao posts_stats.json)."""
+    if norm_df.empty:
+        return {"input_file": str(input_path), "total_raw_articles": len(raw_df), "final_articles": 0}
+
+    vacinas = norm_df["vaccine_mentioned"].dropna().astype(str).str.split("; ").explode()
+    eficacia = norm_df["efficacy_reported"].dropna()
+
+    return {
+        "input_file": str(input_path),
+        "output_csv": str(output_csv),
+        "total_raw_articles": len(raw_df),
+        "final_articles": len(norm_df),
+        "discarded_articles": len(raw_df) - len(norm_df),
+        "articles_with_vaccine_identified": int(norm_df["vaccine_mentioned"].notna().sum()),
+        "articles_with_efficacy_reported": int(len(eficacia)),
+        "mean_efficacy_reported": round(float(eficacia.mean()), 2) if len(eficacia) else None,
+        "thematic_axis_counts": _contar(norm_df["thematic_axis"]),
+        "study_type_counts": _contar(norm_df["study_type"]),
+        "vaccine_counts": _contar(vacinas),
+        "top_journals": _contar(norm_df["journal"], top=10),
+        "yearly_counts": dict(sorted(_contar(norm_df["publication_date"].str[:4]).items())),
+        "monthly_counts": dict(sorted(_contar(norm_df["publication_month"]).items())),
+    }
+
+
 def tratar_artigos(
     input_path: Path = ARQUIVO_ARTIGOS,
     output_csv: Path = ARTIGOS_TRATADOS_CSV,
+    stats_json: Path = ARTIGOS_STATS_JSON,
 ) -> dict[str, Any]:
-    """Lê a planilha de artigos, padroniza colunas e salva o CSV tratado."""
+    """Lê a planilha de artigos, padroniza colunas e salva o CSV tratado e o resumo."""
     criar_pastas()
     raw_df = ler_planilha_artigos(input_path)
     norm_df = normalizar_artigos(raw_df, source_name=input_path.name)
@@ -220,14 +255,9 @@ def tratar_artigos(
     output_csv.parent.mkdir(parents=True, exist_ok=True)
     norm_df.to_csv(output_csv, index=False, encoding="utf-8-sig")
 
-    return {
-        "input_file": str(input_path),
-        "output_csv": str(output_csv),
-        "raw_rows": len(raw_df),
-        "normalized_rows": len(norm_df),
-        "columns": list(norm_df.columns),
-        "sample_records": norm_df.head(2).to_dict(orient="records"),
-    }
+    resumo = gerar_resumo(raw_df, norm_df, input_path, output_csv)
+    stats_json.write_text(json.dumps(resumo, ensure_ascii=False, indent=2), encoding="utf-8")
+    return resumo
 
 
 def main() -> None:

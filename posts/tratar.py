@@ -163,6 +163,56 @@ WHITESPACE_RE = re.compile(r"\s+")
 INLINE_HASHTAG_RE = re.compile(r"#([A-Za-z0-9_]+)")
 
 
+# Tecnologia de cada fabricante (usada na análise por tecnologia)
+TECNOLOGIA_POR_VACINA: dict[str, str] = {
+    "Pfizer/BioNTech": "mRNA",
+    "Moderna": "mRNA",
+    "AstraZeneca": "Vetor viral",
+    "Janssen": "Vetor viral",
+    "Sputnik V": "Vetor viral",
+    "Sinovac": "Vírus inativado",
+    "Sinopharm": "Vírus inativado",
+    "Covaxin": "Vírus inativado",
+}
+
+# Tecnologia citada diretamente no texto, mesmo sem nome de fabricante
+TECNOLOGIA_PATTERNS: dict[str, re.Pattern[str]] = {
+    "mRNA": re.compile(r"\bm-?rna\b|\bmessenger\s+rna\b|\blipid\s+nanoparticles?\b|\blnp\b", re.IGNORECASE),
+    "Vetor viral": re.compile(r"\badenovir(?:us|al)\b|\bviral\s+vector\b|\bvector\s+vaccines?\b", re.IGNORECASE),
+    "Vírus inativado": re.compile(r"\binactivated\b|\bwhole[-\s]virion\b", re.IGNORECASE),
+}
+
+# Vocabulário técnico-científico (para comparar engajamento com teorias genéricas)
+TERMOS_TECNICOS: dict[str, re.Pattern[str]] = {
+    "mrna": re.compile(r"\bm-?rna\b|\bmessenger\s+rna\b", re.IGNORECASE),
+    "spike": re.compile(r"\bspike(?:\s+protein)?\b", re.IGNORECASE),
+    "patente": re.compile(r"\bpatent(?:s|ed)?\b", re.IGNORECASE),
+    "nanoparticula_lipidica": re.compile(r"\blipid\s+nanoparticles?\b|\blnp\b", re.IGNORECASE),
+    "vetor_adenovirus": re.compile(r"\badenovir(?:us|al)\b|\bviral\s+vector\b", re.IGNORECASE),
+    "anticorpos": re.compile(r"\bantibod(?:y|ies)\b", re.IGNORECASE),
+    "ensaio_clinico": re.compile(r"\bclinical\s+trials?\b|\bphase\s*(?:1|2|3|i{1,3})\b|\bplacebo\b", re.IGNORECASE),
+    "vaers": re.compile(r"\bvaers\b", re.IGNORECASE),
+}
+
+
+def detectar_termos_tecnicos(text: str) -> list[str]:
+    """Lista os termos técnico-científicos presentes no texto."""
+    return [nome for nome, pattern in TERMOS_TECNICOS.items() if pattern.search(text or "")]
+
+
+def detectar_tecnologias(text: str, vacinas: list[str] | None = None) -> list[str]:
+    """Tecnologias de vacina citadas (por fabricante ou por termo) no texto."""
+    tecnologias: list[str] = []
+    for vacina in vacinas or []:
+        tec = TECNOLOGIA_POR_VACINA.get(vacina)
+        if tec and tec not in tecnologias:
+            tecnologias.append(tec)
+    for nome, pattern in TECNOLOGIA_PATTERNS.items():
+        if nome not in tecnologias and pattern.search(text or ""):
+            tecnologias.append(nome)
+    return tecnologias
+
+
 def detectar_vacinas(text: str) -> list[str]:
     """Identifica fabricantes/vacinas de COVID-19 mencionadas no texto."""
     return [brand for brand, pattern in VACCINE_BRAND_PATTERNS.items() if pattern.search(text)]
@@ -247,6 +297,7 @@ def tratar_posts(
     kept_frames: list[pd.DataFrame] = []
     category_counter: Counter[str] = Counter()
     monthly_counter: Counter[str] = Counter()
+    raw_monthly_counter: Counter[str] = Counter()  # total de posts brutos por mês (denominador)
 
     usecols = [
         "id", "user_name", "user_location", "user_followers", "user_verified",
@@ -263,6 +314,9 @@ def tratar_posts(
         total_rows += len(chunk)
         chunk = chunk.dropna(subset=["id", "text", "date"]).copy()
         chunk["text"] = chunk["text"].astype(str)
+
+        meses_brutos = chunk["date"].astype(str).str[:7]
+        raw_monthly_counter.update(meses_brutos[meses_brutos.str.match(r"^\d{4}-\d{2}$")].tolist())
 
         classifications = chunk["text"].map(classificar_post)
         chunk["conspiracy_categories"] = [item[0] for item in classifications]
@@ -298,6 +352,11 @@ def tratar_posts(
             extrair_hashtags(h, t) for h, t in zip(filtered["hashtags"], filtered["text"])
         ]
         filtered["vaccines_mentioned"] = filtered["text"].map(detectar_vacinas)
+        filtered["termos_tecnicos"] = filtered["text"].map(detectar_termos_tecnicos)
+        filtered["usa_termo_tecnico"] = filtered["termos_tecnicos"].map(len) > 0
+        filtered["tecnologias_mencionadas"] = [
+            detectar_tecnologias(t, v) for t, v in zip(filtered["text"], filtered["vaccines_mentioned"])
+        ]
         filtered["primary_category"] = filtered["conspiracy_categories"].map(lambda cats: cats[0])
 
         for col in ("retweets", "favorites", "user_followers"):
@@ -323,6 +382,7 @@ def tratar_posts(
                     "user_name", "user_location", "user_followers", "user_verified",
                     "text", "clean_text", "hashtags_list", "conspiracy_categories",
                     "primary_category", "matched_keywords", "vaccines_mentioned",
+                    "termos_tecnicos", "usa_termo_tecnico", "tecnologias_mencionadas",
                     "retweets", "favorites", "total_engagement", "engagement_score", "source",
                 ]
             ]
@@ -350,7 +410,9 @@ def tratar_posts(
         "sarcasm_or_debunk_removed": sarcasm_removed,
         "final_conspiracy_posts": len(records),
         "category_counts": dict(category_counter.most_common()),
+        "posts_with_technical_terms": sum(1 for r in records if r["usa_termo_tecnico"]),
         "monthly_counts": dict(sorted(monthly_counter.items())),
+        "raw_monthly_counts": dict(sorted(raw_monthly_counter.items())),
     }
     stats_json.write_text(json.dumps(stats, ensure_ascii=False, indent=2), encoding="utf-8")
     return stats
